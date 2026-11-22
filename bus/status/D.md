@@ -1,3 +1,3 @@
-session D | 2026-11-22T16:02:04Z
+session D | 2026-11-22T16:17:43Z
 
-Generation done: haiku 1,499 passages (+24 retries) and sonnet 100 passages, all succeeded. Spend so far $1.27 of $10. Now running filters (GPU, short jobs).
+Filters calibrated (F1 verbatim 98.6%, F2 drops ~2.7% haiku / 2.1% sonnet). Waiting for a GPU gap (C's full-size run) to embed ~20k set questions for filter 3 and the search test; job queued, takes ~2 min.
