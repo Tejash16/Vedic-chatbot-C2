@@ -1,3 +1,3 @@
-session B | 2026-11-22T16:06:12Z
+session B | 2026-11-22T16:11:31Z
 
-CANDIDATES_READY received. C5 starting: no-reranker baseline, Haiku token estimate, then bge/qwen on GPU and Haiku pilot + full runs.
+C5 running: bge-reranker then Qwen3-reranker on GPU (~10 + ~30 min, lock held by B); Haiku medium run in parallel (API).
