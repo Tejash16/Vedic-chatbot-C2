@@ -502,8 +502,8 @@ def write_report(idx, cols_df, tab_df, rec_df, dmg_df, link_df, raw_type_notes, 
     W.append("- The Veda of a commentary comes from its folder. For the `multi` works it is inferred per row from the "
              "reference shape: 1 part Sama, 2 parts Yajur, 4 parts Atharva, 3 parts Rig or Atharva (ambiguous unless "
              "the reference exists in only one of the two samhitas).")
-    W.append("- Author: taken from the file name (one work = one author and one language). `author_id` = author slug + "
-             "language; e.g. Harisharan Siddhantalankar's Hindi bhashya on four Vedas is one author_id with four tables.\n")
+    W.append("- Author: `author_id` is the file name as it is (one file = one work); no names are merged. Possible "
+             "matches (the same person, spelling variants) are listed in ../local/final/open-questions.md for the society.\n")
     lk = link_df.copy()
     tot = lk[["records", "linked", "ambiguous", "broken", "unparseable"]].sum()
     W.append(f"Totals: {int(tot.records)} records, {int(tot.linked)} linked to a verse, {int(tot.ambiguous)} ambiguous "
@@ -534,7 +534,7 @@ def write_report(idx, cols_df, tab_df, rec_df, dmg_df, link_df, raw_type_notes, 
                                          records=("chars", "size"), Mchars=("chars", lambda x: x.sum() / 1e6)).reset_index()
     W.append(md_table(pc))
     W.append("")
-    W.append("Counts per author (author_id = author + language):\n")
+    W.append("Counts per work (author_id = the file name; one file = one work):\n")
     pa = rec_df.groupby("author_id").agg(works=("table_id", "nunique"),
                                         collections=("collection", lambda x: ",".join(sorted(set(x)))),
                                         records=("chars", "size"), with_text=("chars", lambda x: int((x > 0).sum())),
@@ -615,8 +615,11 @@ def write_report(idx, cols_df, tab_df, rec_df, dmg_df, link_df, raw_type_notes, 
         W.append(f"Estimated total: {tok['total']['est_claude_tokens']/1e6:.1f} M Claude tokens. "
                  f"bge-m3 exact total: {tok['total']['bge_tokens_exact']/1e6:.1f} M tokens, i.e. about "
                  f"{tok['total']['bge_tokens_exact']/300/1e3:.0f} k chunks of 300 tokens.\n")
-        W.append("bge-m3 tokens per author (top 25):\n")
-        ba = pd.DataFrame([dict(author_id=k, bge_Mtokens=v / 1e6) for k, v in list(tok["bge_per_author"].items())[:25]])
+        W.append("bge-m3 tokens per work (top 25):\n")
+        per_work = collections.Counter()
+        for tid, n in tok["bge_per_table"].items():
+            per_work[L.load_index().set_index("table_id").loc[tid, "author_id"] if tid in set(L.load_index().table_id) else tid] += n
+        ba = pd.DataFrame([dict(author_id=k, bge_Mtokens=v / 1e6) for k, v in per_work.most_common(25)])
         W.append(md_table(ba))
     else:
         W.append("Not yet counted. Run `python -m src.C.audit --tokens`.")
@@ -653,8 +656,9 @@ ASSUMPTIONS = """\
    verse metadata columns inside commentary files are not commentary and are left out. Cleaning: placeholder cells
    ('N/A', 'NULL', 'None', '-') become empty, `<br>` becomes a line break, control characters, ZWSP, BOM and soft
    hyphens are removed, NBSP becomes a space, then NFC. ZWJ/ZWNJ are kept.
-2. `author_id` = commentator + language, from the file name. A work translated by someone else (e.g. into Bengali) keeps
-   the original commentator where the file name says so.
+2. `author_id` = the file name as it is (decided with the human in Stage B): one file is one work; no names are merged.
+   Possible same-person pairs are in ../local/final/open-questions.md. The exact commentary columns per table are in
+   shared/config.yaml (this audit's 'text' role is the starting point, refined there).
 3. The test corpus for retrieval uses Hindi, Sanskrit and English works only (the spec's three languages). Hinglish,
    Bengali, Gujarati, Marathi, Nepali, Tamil and Urdu works are left out of the benchmark corpus but stay in the tables.
 4. `multi` anthologies are kept only for rows whose Veda can be inferred without ambiguity (references with 1 part are
