@@ -307,14 +307,37 @@ def run_all(corpus: str, forms_extra: dict | None = None, rewrite_ms: dict | Non
     return s
 
 
+def fused_path(corpus: str, run_id: str):
+    return run_dir(corpus) / f"fused__{run_id.replace('|', '__').replace('+', '_')}.json"
+
+
+def write_candidates(run_id: str, corpus: str = "10k", n: int = 50):
+    """shared/candidates_top50.jsonl: {"qid", "chunk_ids": top n, "setup"} per question."""
+    ranked = json.loads(fused_path(corpus, run_id).read_text(encoding="utf-8"))
+    q = load_questions()
+    out = L.ROOT / "shared" / "candidates_top50.jsonl"
+    with open(out, "w", encoding="utf-8") as f:
+        for qid in q.qid:
+            f.write(json.dumps({"qid": qid, "chunk_ids": ranked[qid][:n], "setup": run_id}) + "\n")
+    print("wrote", out, "from", run_id)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["embed", "run"])
+    ap.add_argument("cmd", choices=["embed", "run", "candidates"])
     ap.add_argument("--corpus", default="10k", choices=["10k", "full"])
     ap.add_argument("--parts", type=int, default=1)
+    ap.add_argument("--rewrites", action="store_true", help="add the C4 question forms (needs ../local/work/rewrites.jsonl)")
+    ap.add_argument("--setup", default="", help="candidates: the run_id of the best fused setup")
     a = ap.parse_args()
     if a.cmd == "embed":
         embed_corpus(a.corpus, parts=a.parts, gpu_lock=bus_gpu)
+    elif a.cmd == "candidates":
+        write_candidates(a.setup, a.corpus)
+    elif a.rewrites:
+        from src.C.rewrite import load_rewrites
+        forms, ms, usd = load_rewrites()
+        run_all(a.corpus, forms_extra=forms, rewrite_ms=ms, rewrite_usd_per_1000=usd)
     else:
         run_all(a.corpus)
 
