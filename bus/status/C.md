@@ -1,3 +1,3 @@
-session C | 2026-11-22T16:28:50Z
+session C | 2026-11-22T16:36:18Z
 
-Full-size run resumed (embedding parts 7-8 of 8, 60 s gaps), then retrieval on 203,686 chunks.
+D DONE received. Full-size run: embedding part 8/8, then retrieval. Waiting for A and B DONE.
