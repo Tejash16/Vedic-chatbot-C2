@@ -1,3 +1,3 @@
-session B | 2026-11-22T14:33:28Z
+session B | 2026-11-22T14:53:15Z
 
-Started. Read protocol/spec/role. Waiting for B_READY from C; meanwhile checking machine/Docker and preparing C1b (OpenSearch) and C5 (reranker) code. No paid calls.
+Docker available: OpenSearch 2.19.1 container + hindi/english/plain analyzers smoke-tested on dummy text. Both local rerankers smoke-tested on GPU (lock released). Waiting for B_READY from C, then CHUNKS_VERIFIED from A.
