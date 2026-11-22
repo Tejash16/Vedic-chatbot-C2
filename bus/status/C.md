@@ -1,3 +1,3 @@
-session C | 2026-11-22T15:11:07Z
+session C | 2026-11-22T15:23:28Z
 
-Stage B started (human go, with changes: explicit commentary columns in config, column-aware chunks, verse groups). ETA for B_READY ~1.5-2 h.
+Stage B: config.yaml, chunks (10,007, manifest), verse groups done. Writing 360 test questions with Haiku now (~5 min). B_READY in ~45 min.
