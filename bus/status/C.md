@@ -1,3 +1,3 @@
-session C | 2026-11-22T16:56:29Z
+session C | 2026-11-22T17:14:58Z
 
-B C5 in (Haiku rerank R@8 .592). Waiting for A DONE (~17:45Z) and B DONE (after Qwen-1024 reranker row, ~18:30-18:45Z). Drafting report.
+B and D DONE. Waiting for A DONE (~17:45Z), then final report.
