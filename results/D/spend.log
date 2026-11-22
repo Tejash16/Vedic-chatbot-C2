@@ -1,0 +1,6 @@
+2026-11-22T15:44:45Z | D1 pilot claude-haiku-5-5 | claude-haiku-5-5 | requests=10 | in_tokens=18082 | out_tokens=9506 | batch=no | usd=0.0066 | 
+2026-11-22T15:45:02Z | D1 pilot claude-sonnet-5-5 | claude-sonnet-5-5 | requests=5 | in_tokens=8948 | out_tokens=5475 | batch=no | usd=0.0726 | 
+2026-11-22T15:47:16Z | D1 pilot claude-haiku-5-5 | claude-haiku-5-5 | requests=10 | in_tokens=18232 | out_tokens=14031 | batch=no | usd=0.0088 | 
+2026-11-22T15:58:44Z | D1 generate claude-sonnet-5-5 batch | claude-sonnet-5-5 | requests=100 | in_tokens=162435 | out_tokens=76317 | batch=yes | usd=0.5440 | batch msgbatch_01V39jnKCShXFS7DJe75Dy4h
+2026-11-22T16:00:17Z | D1 generate claude-haiku-5-5 batch | claude-haiku-5-5 | requests=1499 | in_tokens=2439651 | out_tokens=2004263 | batch=yes | usd=0.6230 | batch msgbatch_016jMhfouoCNreLbC7XkWpHS
+2026-11-22T16:01:50Z | D1 retry claude-haiku-5-5 batch | claude-haiku-5-5 | requests=24 | in_tokens=44535 | out_tokens=31475 | batch=yes | usd=0.0101 | batch msgbatch_01Tk8nfgRMQdhXPXYDzUrPEm
