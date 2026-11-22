@@ -87,6 +87,8 @@ def embed_corpus(corpus: str, part: int | None = None, parts: int = 1, gpu_lock=
             if gpu_lock:
                 free_gpu()
                 gpu_lock("release")
+        if gpu_lock and p != todo[-1]:
+            time.sleep(60)          # leave the other session on this laptop a window to take the GPU
     if part is None or all((EMB / f"bge_m3_{corpus}_p{p}of{parts}.npz").exists() for p in range(parts)):
         dense = np.concatenate([np.load(EMB / f"bge_m3_{corpus}_p{p}of{parts}.npy") for p in range(parts)])
         sparse = sp.vstack([sp.load_npz(EMB / f"bge_m3_{corpus}_p{p}of{parts}.npz") for p in range(parts)]).tocsr()
