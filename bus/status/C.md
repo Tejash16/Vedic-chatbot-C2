@@ -1,3 +1,3 @@
-session C | 2026-11-22T14:37:48Z
+session C | 2026-11-22T14:43:51Z
 
-Stage A: tables converted to Parquet (111 tables, 208k commentary records). Audit report drafted; running token counts now. Then INFO to ALL and wait for human go.
+Stage A done: ../local/final/data-audit.md written, INFO posted. Waiting for human go on column assumptions before Stage B.
