@@ -1,3 +1,3 @@
-session C | 2026-11-22T14:43:51Z
+session C | 2026-11-22T15:11:07Z
 
-Stage A done: ../local/final/data-audit.md written, INFO posted. Waiting for human go on column assumptions before Stage B.
+Stage B started (human go, with changes: explicit commentary columns in config, column-aware chunks, verse groups). ETA for B_READY ~1.5-2 h.
