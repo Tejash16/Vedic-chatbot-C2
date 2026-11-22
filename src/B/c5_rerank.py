@@ -26,15 +26,18 @@ OUT = bc.WORK / "B" / "c5"
 HAIKU_IN_USD, HAIKU_OUT_USD = 0.10 / 1e6, 0.50 / 1e6  # claude-haiku-5-5, prompts up to 100K tokens
 
 
+CANDS_PATH = bc.SHARED / "candidates_top50.jsonl"
+
+
 def load_candidates():
     cands = {}
-    with open(bc.SHARED / "candidates_top50.jsonl", encoding="utf-8") as f:
+    with open(CANDS_PATH, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
             d = json.loads(line)
-            ids = d.get("chunk_ids") or d.get("candidates") or d.get("top50") or d.get("ids")
-            cands[d["qid"]] = list(ids)
+            key = next(k for k in ("chunk_ids", "candidates", "top50", "ids", "top_50") if k in d)
+            cands[d["qid"]] = list(d[key])
     return cands
 
 
@@ -59,7 +62,12 @@ def save(name, data):
 
 def run_local(kind):
     chunks, questions, cands, text_of = setup()
-    model = rm.BgeReranker() if kind == "bge" else rm.QwenReranker()
+    if kind == "bge":
+        model = rm.BgeReranker()
+    elif kind == "qwen":
+        model = rm.QwenReranker()
+    else:  # qwen1024: same text as bge sees (Devanagari needs ~2.5x Qwen tokens)
+        model = rm.QwenReranker(batch_size=5, passage_max=1024)
     for q in questions[:3]:  # warm-up
         model.rank(q["question"], [text_of[c] for c in cands[q["qid"]]])
     run, lat = {}, {}
@@ -113,7 +121,7 @@ def log_spend(step, n_req, tin, tout, usd):
             step, rm.HAIKU_MODEL, n_req, tin, tout, usd))
 
 
-def run_haiku(effort="medium", workers=4, limit_usd=4.5):
+def run_haiku(effort="medium", workers=4, limit_usd=4.5, max_questions=0):
     chunks, questions, cands, text_of = setup()
     c = client()
     name = "haiku_%s" % effort
@@ -125,6 +133,8 @@ def run_haiku(effort="medium", workers=4, limit_usd=4.5):
             d = json.loads(line)
             done[d["qid"]] = d
     todo = [q for q in questions if q["qid"] not in done]
+    if max_questions:
+        todo = todo[:max_questions]
     print("%s: %d done, %d to do" % (name, len(done), len(todo)))
     lock = threading.Lock()
     spent = {"usd": sum(d["usd"] for d in done.values()), "in": 0, "out": 0, "n": 0}
@@ -193,17 +203,19 @@ def score():
     chunks, questions, cands, text_of = setup()
     qdf = bc.load_questions()
     rows = []
+    bc.save_run("c5_no_reranker", cands)
     rows += bc.result_rows(cands, chunks, session="B", stage="C5", run_id="C5_no_reranker",
                            setup="no_reranker", corpus_size=bc.CORPUS_SIZE,
                            latencies_ms=[0.0] * len(questions), questions=qdf, at8=True,
-                           notes="candidates_top50 order as given; no rerank step, so no added latency")
+                           notes="candidates_top50 order as given (C4 fused setup); no rerank step. Reranker rows add their latency and cost on top of candidate generation (laptop 1: p50 1.71 s, $0.114 per 1000)")
     notes = {
         "bge": "BAAI/bge-reranker-v2-m3 fp16, pair max 512 tokens (passage truncated), scores all 50; latency = 50 pairs per question on RTX 3050 4GB",
         "qwen": "Qwen/Qwen3-Reranker-0.6B fp16, yes/no last-token logit, passage cut at 512 tokens, task instruction; scores all 50; latency = 50 pairs per question on RTX 3050 4GB",
-        "haiku_medium": "claude-haiku-5-5 effort medium, structured JSON output, sees 50 numbered passages in candidate order; its 8 picks first, then the other candidates in original order; latency = one real-time API call",
+        "qwen1024": "as qwen3-reranker-0.6b but passage cut at 1024 Qwen tokens (DEVIATION from the 512 rule: Qwen needs ~2.5x the bge tokens on Devanagari, so 512 cut 74% of hi and 59% of sa passages; 1024 shows the same text bge sees), batch 5",
+        "haiku_medium": "claude-haiku-5-5 effort medium, structured JSON output, sees 50 numbered passages in candidate order; its 8 picks first, then the other candidates in original order; latency = one real-time API call (4 requests in flight), measured on laptop 2; Haiku 5.5 price $0.10/M in, $0.50/M out",
         "haiku_low": "claude-haiku-5-5 effort low, otherwise as haiku_medium",
     }
-    for name in ("bge", "qwen", "haiku_medium", "haiku_low"):
+    for name in ("bge", "qwen", "qwen1024", "haiku_medium", "haiku_low"):
         p = OUT / ("%s.json" % name)
         if not p.exists():
             continue
@@ -214,11 +226,12 @@ def score():
         paid = 0.0
         if "usd" in d:
             paid = 1000.0 * sum(d["usd"].values()) / max(1, len(d["usd"]))
-        setup_name = {"bge": "bge-reranker-v2-m3", "qwen": "qwen3-reranker-0.6b"}.get(name, "claude-" + name.replace("_", "-"))
+        setup_name = {"bge": "bge-reranker-v2-m3", "qwen": "qwen3-reranker-0.6b", "qwen1024": "qwen3-reranker-0.6b-p1024"}.get(name, "claude-" + name.replace("_", "-"))
         extra = ""
         if "status" in d:
             nb = sum(1 for s in d["status"].values() if s != "ok")
             extra = "; %d answers not ok (refusal/short/bad json)" % nb
+        bc.save_run("c5_" + setup_name, d["run"])
         rows += bc.result_rows(d["run"], chunks, session="B", stage="C5", run_id="C5_" + name,
                                setup=setup_name, corpus_size=bc.CORPUS_SIZE,
                                latencies_ms=list(d["latency_ms"].values()), paid_usd_per_1000=paid,
@@ -233,17 +246,24 @@ def score():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["bge", "qwen", "estimate", "haiku", "score"])
+    ap.add_argument("cmd", choices=["bge", "qwen", "qwen1024", "estimate", "haiku", "score"])
     ap.add_argument("--effort", default="medium", choices=["low", "medium", "high"])
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--limit-usd", type=float, default=4.5)
+    ap.add_argument("--max-questions", type=int, default=0, help="pilot: only this many new questions")
+    ap.add_argument("--cands", default="", help="other candidate file (estimate only), e.g. a C1b run")
     a = ap.parse_args()
-    if a.cmd in ("bge", "qwen"):
+    if a.cands:
+        if a.cmd != "estimate":
+            sys.exit("--cands is for estimate only; C5 runs use shared/candidates_top50.jsonl")
+        global CANDS_PATH
+        CANDS_PATH = Path(a.cands)
+    if a.cmd in ("bge", "qwen", "qwen1024"):
         run_local(a.cmd)
     elif a.cmd == "estimate":
         estimate(effort=a.effort)
     elif a.cmd == "haiku":
-        run_haiku(effort=a.effort, workers=a.workers, limit_usd=a.limit_usd)
+        run_haiku(effort=a.effort, workers=a.workers, limit_usd=a.limit_usd, max_questions=a.max_questions)
     else:
         score()
 

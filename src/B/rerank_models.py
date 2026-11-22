@@ -37,12 +37,17 @@ class BgeReranker:
 
     @torch.inference_mode()
     def scores(self, question, passages):
-        out = []
-        for i in range(0, len(passages), self.batch_size):
-            part = passages[i:i + self.batch_size]
-            enc = self.tok([question] * len(part), part, padding=True, truncation="only_second",
-                           max_length=self.max_length, return_tensors="pt").to(self.device)
-            out.extend(self.model(**enc).logits.view(-1).float().cpu().tolist())
+        # batches of similar length, so short passages are not padded to the longest one
+        enc_all = self.tok([question] * len(passages), passages, truncation="only_second",
+                           max_length=self.max_length)
+        idx = sorted(range(len(passages)), key=lambda j: len(enc_all["input_ids"][j]))
+        out = [0.0] * len(passages)
+        for i in range(0, len(idx), self.batch_size):
+            part = idx[i:i + self.batch_size]
+            feats = [{k: enc_all[k][j] for k in enc_all.keys()} for j in part]
+            enc = self.tok.pad(feats, padding=True, return_tensors="pt").to(self.device)
+            for j, s in zip(part, self.model(**enc).logits.view(-1).float().cpu().tolist()):
+                out[j] = s
         return out
 
     def rank(self, question, passages):
@@ -71,7 +76,7 @@ class QwenReranker:
     suffix = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
 
     def __init__(self, device="cuda", batch_size=10, dtype=torch.float16,
-                 instruction=QWEN_INSTRUCTION):
+                 instruction=QWEN_INSTRUCTION, passage_max=PASSAGE_MAX_TOKENS):
         from transformers import AutoModelForCausalLM, AutoTokenizer
         torch.manual_seed(SEED)
         self.tok = AutoTokenizer.from_pretrained(self.name, padding_side="left")
@@ -82,27 +87,34 @@ class QwenReranker:
         self.pre = self.tok.encode(self.prefix, add_special_tokens=False)
         self.suf = self.tok.encode(self.suffix, add_special_tokens=False)
         self.device, self.batch_size, self.instruction = device, batch_size, instruction
+        # Qwen's tokenizer needs ~2.5x the tokens of bge's on Devanagari, so 512 Qwen tokens cut
+        # most Hindi/Sanskrit passages; passage_max=1024 lets Qwen see the same text as bge.
+        self.passage_max = passage_max
 
     def _cut(self, text):
         ids = self.tok.encode(text, add_special_tokens=False)
-        if len(ids) <= PASSAGE_MAX_TOKENS:
+        if len(ids) <= self.passage_max:
             return text
-        return self.tok.decode(ids[:PASSAGE_MAX_TOKENS])
+        return self.tok.decode(ids[:self.passage_max])
 
     @torch.inference_mode()
     def scores(self, question, passages):
-        out = []
         texts = ["<Instruct>: %s\n<Query>: %s\n<Document>: %s" % (self.instruction, question, self._cut(p))
                  for p in passages]
-        for i in range(0, len(texts), self.batch_size):
-            part = texts[i:i + self.batch_size]
-            enc = self.tok(part, padding=False, truncation=False, add_special_tokens=False,
-                           return_attention_mask=False)
-            enc["input_ids"] = [self.pre + ids + self.suf for ids in enc["input_ids"]]
-            enc = self.tok.pad(enc, padding=True, return_tensors="pt").to(self.device)
+        ids_all = [self.pre + ids + self.suf for ids in
+                   self.tok(texts, padding=False, truncation=False, add_special_tokens=False,
+                            return_attention_mask=False)["input_ids"]]
+        # batches of similar length, so short passages are not padded to the longest one
+        idx = sorted(range(len(texts)), key=lambda j: len(ids_all[j]))
+        out = [0.0] * len(texts)
+        for i in range(0, len(idx), self.batch_size):
+            part = idx[i:i + self.batch_size]
+            enc = self.tok.pad({"input_ids": [ids_all[j] for j in part]}, padding=True,
+                               return_tensors="pt").to(self.device)
             logits = self.model(**enc, logits_to_keep=1).logits[:, -1, :]
             pair = torch.stack([logits[:, self.no], logits[:, self.yes]], dim=1).float()
-            out.extend(torch.log_softmax(pair, dim=1)[:, 1].exp().cpu().tolist())
+            for j, s in zip(part, torch.log_softmax(pair, dim=1)[:, 1].exp().cpu().tolist()):
+                out[j] = s
         return out
 
     def rank(self, question, passages):
