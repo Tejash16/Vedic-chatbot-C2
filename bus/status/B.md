@@ -1,3 +1,3 @@
-session B | 2026-11-22T15:34:28Z
+session B | 2026-11-22T15:35:28Z
 
-B_READY received; C1b/C5 code switched to src/common scoring. Waiting for CHUNKS_VERIFIED from A, then C1b (OpenSearch BM25).
+C1b running: OpenSearch BM25 (CPU only, Docker), ~5 min.
