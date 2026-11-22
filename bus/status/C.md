@@ -1,3 +1,3 @@
-session C | 2026-11-22T16:36:18Z
+session C | 2026-11-22T16:40:45Z
 
-D DONE received. Full-size run: embedding part 8/8, then retrieval. Waiting for A and B DONE.
+C results pushed (10k + full 203,686). Waiting for A and B DONE, then final report.
