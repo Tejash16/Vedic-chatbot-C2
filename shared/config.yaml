@@ -1,0 +1,2041 @@
+# C2 benchmark configuration. Written by session C (python -m src.C.make_config). Do not edit by hand.
+# tables.<id>.commentary is the exact list of commentary columns, in sheet order.
+seed: 7
+paths:
+  data: ../local/data
+  work: ../local/work
+  final: ../local/final
+  hf_home: ../local/hf-cache
+  env: ../local/.env (VEDIC_ANTHROPIC_API_KEY)
+text:
+  normalization: NFC
+  placeholders:
+  - N/A
+  - NA
+  - 'NULL'
+  - None
+  - undefined
+  - nan
+  - '-'
+  - missing
+  - '"Missing"'
+  - x
+  applied_to: commentary, verse text and pada text
+  record_text: commentary columns in sheet order, cleaned, joined by a blank line; no column names
+chunking:
+  tokenizer: BAAI/bge-m3
+  target_tokens: 300
+  variants_C6:
+  - 150
+  - 600
+  rule: break at a column boundary first, then at sentence ends (danda, double danda, ? ! and full stop + space, line break); small whole columns of the same language share a chunk; a chunk smaller than
+    0.3 x target takes the next column's first sentences; a last chunk smaller than 0.3 x target joins the one before if both fit in 1.3 x target; a sentence longer than target is cut at a space
+  header: '''<Veda> <ref> | <work name from the file name>'' (no column names); embed header + newline + text unless the setup removes the header'
+  max_length_passages: 512
+  max_length_600_variant: 1024
+corpus:
+  languages:
+  - hi
+  - sa
+  - en
+  target_chunks: 10000
+  selection: verses ordered by (rank within their Veda / verses in that Veda), rank = sha256('7|'+verse_id); take every hi/sa/en record of each verse until 10,000 chunks; data-only and deterministic
+  full: every hi/sa/en chunk (session C runs it once as corpus_size 'full')
+verse_group: NFC unaccented verse text with accent marks, spaces, punctuation and digits removed; verses with the same key form a group; verse-level scoring counts any verse of the gold verse's group
+questions:
+  model: claude-haiku-5-5
+  groups:
+    hi: Hindi in Devanagari
+    en: English
+    hi_roman: Hindi typed in Roman letters, phone style
+    sa_quote: Hindi or English question quoting a few Sanskrit words of the verse
+  per_group: 90
+  gold_chunk_langs_per_group:
+    hi: 36
+    en: 32
+    sa: 22
+  styles:
+  - direct
+  - reworded
+  - broad
+  real: group 'real' may be added later; always reported separately
+candidates:
+  keyword:
+    C1a: bm25s, own tokenizer (src.common.text.words)
+    C1b: OpenSearch BM25, Hindi analyzer for hi/sa, English analyzer for en, plus unstemmed field
+  embedding:
+    C2a: BAAI/bge-m3 dense, sparse, dense+sparse
+    C2b: Qwen/Qwen3-Embedding-0.6B dense, alone and fused with C1a
+  fusion:
+    method: reciprocal rank fusion
+    k: 60
+  question_forms:
+    C4: as typed; claude-haiku-5-5 rewrite to Devanagari and to English; each fused with the original
+  rerankers:
+    C5:
+    - BAAI/bge-reranker-v2-m3
+    - Qwen/Qwen3-Reranker-0.6B
+    - claude-haiku-5-5 picks best 8
+    keep: 8
+    input: shared/candidates_top50.jsonl
+  chunk_variants:
+    C6:
+    - 150 tokens
+    - 600 tokens
+    - 300 tokens without header
+    embedding: bge-m3 dense+sparse
+    gold: any chunk of the gold record overlapping the gold character span
+gpu:
+  precision: fp16
+  lock: python bus/bus.py gpu acquire|release
+metrics:
+  k:
+  - 5
+  - 10
+  - 20
+  mrr_at: 10
+  ndcg_at: 10
+  levels:
+  - chunk
+  - verse
+  verse_level: a hit is any chunk whose verse is in the gold verse's group
+  chunk_level: 'a hit is the gold chunk only (C6: overlap rule above)'
+  latency: p50 and p95 per question for the stage, on that machine, in ms
+  cost: paid US dollars per 1,000 questions
+results_schema:
+- session
+- stage
+- run_id
+- setup
+- corpus_size
+- question_group
+- level
+- recall_5
+- recall_10
+- recall_20
+- mrr_10
+- ndcg_10
+- p50_ms
+- p95_ms
+- paid_usd_per_1000
+- machine
+- notes
+results_optional:
+- recall_8
+- mrr_8
+- ndcg_8
+tables:
+  samhita.rig:
+    file: samhitas/rigveda-samhita.xlsx
+    copies:
+    - samhitas/rigveda-samhita.xlsx
+    kind: samhita
+    collection: rig
+    lang: sa
+    author_id: null
+    rows: 10552
+    verse_text: स्वर रहित मन्त्र
+    verse_text_accented: Mantra with Swara
+    pada: स्वर रहित पद पाठ
+    pada_accented: स्वर सहित पद पाठ
+    verse_details:
+    - Devata
+    - Rishi
+    - Chhanda
+    - Swara
+    number_columns:
+    - Mantra Ref ID
+    - Mandal
+    - Sukta
+    - Mantra No
+  samhita.sama:
+    file: samhitas/samaveda-samhita.xlsx
+    copies:
+    - samhitas/samaveda-samhita.xlsx
+    kind: samhita
+    collection: sama
+    lang: sa
+    author_id: null
+    rows: 1875
+    verse_text: स्वर रहित मन्त्र
+    verse_text_accented: Mantra with Swara
+    pada: स्वर रहित पद पाठ
+    pada_accented: स्वर सहित पद पाठ
+    verse_details:
+    - Devata
+    - Rishi
+    - Chhanda
+    number_columns:
+    - Mantra Ref ID
+    - Mantra Sankhya
+  samhita.yajur:
+    file: samhitas/yajurveda-samhita.xlsx
+    copies:
+    - samhitas/yajurveda-samhita.xlsx
+    kind: samhita
+    collection: yajur
+    lang: sa
+    author_id: null
+    rows: 1976
+    verse_text: स्वर रहित मन्त्र
+    verse_text_accented: Mantra with Swara
+    pada: स्वर रहित पद पाठ
+    pada_accented: स्वर सहित पद पाठ
+    verse_details:
+    - Devata
+    - Rishi
+    - Chhanda
+    number_columns:
+    - Mantra Ref ID
+    - Adhyay
+    - Mantra No
+  samhita.atharva:
+    file: samhitas/atharvaveda-samhita.xlsx
+    copies:
+    - samhitas/atharvaveda-samhita.xlsx
+    kind: samhita
+    collection: atharva
+    lang: sa
+    author_id: null
+    rows: 5977
+    verse_text: स्वर रहित मन्त्र
+    verse_text_accented: Mantra with Swara
+    pada: स्वर रहित पद पाठ
+    pada_accented: स्वर सहित पद पाठ
+    verse_details:
+    - Devata
+    - Rishi
+    - Chhanda
+    - Swara
+    number_columns:
+    - Mantra Ref ID
+    - Kand
+    - Sukta
+    - Paryayah
+    - Mantra No
+  rig.AnthologyofVedicHymnsEnglish:
+    file: bhashyas/rigved/AnthologyofVedicHymnsEnglish.xlsx
+    copies:
+    - bhashyas/rigved/AnthologyofVedicHymnsEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: AnthologyofVedicHymnsEnglish
+    rows: 9
+    commentary:
+    - Subject
+    - Anvaya
+    - Word Meaning
+    - Translation
+    - Purport
+    - Footnotes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+    column_lang:
+      Anvaya: sa
+  multi.AryaabhivinaySwamiDayanandBhumanandEnglish:
+    file: bhashyas/rigved/AryaabhivinaySwamiDayanandBhumanandEnglish.xlsx
+    copies:
+    - bhashyas/rigved/AryaabhivinaySwamiDayanandBhumanandEnglish.xlsx
+    - bhashyas/yajurved/AryaabhivinaySwamiDayanandBhumanandEnglish.xlsx
+    kind: bhashya
+    collection: multi
+    lang: en
+    author_id: AryaabhivinaySwamiDayanandBhumanandEnglish
+    rows: 106
+    commentary:
+    - Purport
+    - Footnote
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Subject: empty after cleaning
+  multi.AryaabhivinaySwamiDayanandHindi:
+    file: bhashyas/rigved/AryaabhivinaySwamiDayanandHindi.xlsx
+    copies:
+    - bhashyas/rigved/AryaabhivinaySwamiDayanandHindi.xlsx
+    - bhashyas/yajurved/AryaabhivinaySwamiDayanandHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: AryaabhivinaySwamiDayanandHindi
+    rows: 107
+    commentary:
+    - विषय
+    - व्याखान
+    - टिपण्णी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.AryaabhivinaySwamiDayanandKamalakantNepali:
+    file: bhashyas/rigved/AryaabhivinaySwamiDayanandKamalakantNepali.xlsx
+    copies:
+    - bhashyas/rigved/AryaabhivinaySwamiDayanandKamalakantNepali.xlsx
+    - bhashyas/yajurved/AryaabhivinaySwamiDayanandKamalakantNepali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: ne
+    author_id: AryaabhivinaySwamiDayanandKamalakantNepali
+    rows: 105
+    commentary:
+    - विषय
+    - व्याखान
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.AryaabhivinaySwamiDayanandaMataSavitaJoshiMarathi:
+    file: bhashyas/rigved/AryaabhivinaySwamiDayanandaMataSavitaJoshiMarathi.xlsx
+    copies:
+    - bhashyas/rigved/AryaabhivinaySwamiDayanandaMataSavitaJoshiMarathi.xlsx
+    - bhashyas/yajurved/AryaabhivinaySwamiDayanandaMataSavitaJoshiMarathi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: mr
+    author_id: AryaabhivinaySwamiDayanandaMataSavitaJoshiMarathi
+    rows: 107
+    commentary:
+    - विषय
+    - व्याखान
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणी: empty after cleaning
+  atharva.AtharvaVedaSwamiSatyaPrakashSaraswatiEnglish:
+    file: bhashyas/atharvaved/AtharvaVedaSwamiSatyaPrakashSaraswatiEnglish.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvaVedaSwamiSatyaPrakashSaraswatiEnglish.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: en
+    author_id: AtharvaVedaSwamiSatyaPrakashSaraswatiEnglish
+    rows: 5977
+    commentary:
+    - Subject
+    - Translation
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Comments / Notes: editorial notes on numbering ('MANTRA NO ... AS PER THE BOOK')
+  atharva.AtharvaVedamPdtMRJambunathanTamil:
+    file: bhashyas/atharvaved/AtharvaVedamPdtMRJambunathanTamil.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvaVedamPdtMRJambunathanTamil.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: ta
+    author_id: AtharvaVedamPdtMRJambunathanTamil
+    rows: 4566
+    commentary:
+    - Word Meaning
+    - FootNotes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Subject: empty after cleaning
+  atharva.AtharvavedaBhashyaPanditKshemkaranDasTrivediHindi:
+    file: bhashyas/atharvaved/AtharvavedaBhashyaPanditKshemkaranDasTrivediHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyaPanditKshemkaranDasTrivediHindi.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: hi
+    author_id: AtharvavedaBhashyaPanditKshemkaranDasTrivediHindi
+    rows: 5981
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+  atharva.AtharvavedaBhashyaRojitChandraPtJaydevSharmaBengali:
+    file: bhashyas/atharvaved/AtharvavedaBhashyaRojitChandraPtJaydevSharmaBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyaRojitChandraPtJaydevSharmaBengali.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: bn
+    author_id: AtharvavedaBhashyaRojitChandraPtJaydevSharmaBengali
+    rows: 10
+    commentary:
+    - বিষয় (Subject)
+    - পদার্থ (Padartha)
+    - টিপ্পনী (Tippani)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaBhashyaVaidyaDayalmuniAryaGujarati:
+    file: bhashyas/atharvaved/AtharvavedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: gu
+    author_id: AtharvavedaBhashyaVaidyaDayalmuniAryaGujarati
+    rows: 5976
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaBhashyaVaidyanathShastriEnglish:
+    file: bhashyas/atharvaved/AtharvavedaBhashyaVaidyanathShastriEnglish.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyaVaidyanathShastriEnglish.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: en
+    author_id: AtharvavedaBhashyaVaidyanathShastriEnglish
+    rows: 5977
+    commentary:
+    - Translation
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Note: empty after cleaning
+  atharva.AtharvavedaBhashyaVishwanathVidyalankarHindi:
+    file: bhashyas/atharvaved/AtharvavedaBhashyaVishwanathVidyalankarHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyaVishwanathVidyalankarHindi.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: hi
+    author_id: AtharvavedaBhashyaVishwanathVidyalankarHindi
+    rows: 5977
+    commentary:
+    - भाषार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaBhashyamHarisharanSiddhantalankarHindi:
+    file: bhashyas/atharvaved/AtharvavedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: hi
+    author_id: AtharvavedaBhashyamHarisharanSiddhantalankarHindi
+    rows: 5972
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - विशेष
+    - सूचना
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaBhashyamPanditKshemkaranDasTrivediSanskrit:
+    file: bhashyas/atharvaved/AtharvavedaBhashyamPanditKshemkaranDasTrivediSanskrit.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaBhashyamPanditKshemkaranDasTrivediSanskrit.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: sa
+    author_id: AtharvavedaBhashyamPanditKshemkaranDasTrivediSanskrit
+    rows: 5977
+    commentary:
+    - टिप्पणीः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषयः: empty after cleaning
+      अन्वयः: empty after cleaning
+      पदार्थः: empty after cleaning
+      भावार्थः: empty after cleaning
+      सूचना: 'editorial pointer: ''see the Hindi bhashya'''
+  atharva.AtharvavedaDeenbandhuVedshashtriBengali:
+    file: bhashyas/atharvaved/AtharvavedaDeenbandhuVedshashtriBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaDeenbandhuVedshashtriBengali.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: bn
+    author_id: AtharvavedaDeenbandhuVedshashtriBengali
+    rows: 200
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details:
+    - ऋषि | देवता | छन्द
+    excluded:
+      Mantra Ref ID: verse reference or number
+      मन्त्र (बांग्ला): verse text
+  atharva.AtharvavedaSanhitaBhashaBhashyaPtJaydevSharmaHindi:
+    file: bhashyas/atharvaved/AtharvavedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: hi
+    author_id: AtharvavedaSanhitaBhashaBhashyaPtJaydevSharmaHindi
+    rows: 5956
+    commentary:
+    - विषय
+    - भावार्थ
+    - टिप्पणी
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaTranslationDrTulsiRamEnglish:
+    file: bhashyas/atharvaved/AtharvavedaTranslationDrTulsiRamEnglish.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaTranslationDrTulsiRamEnglish.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: en
+    author_id: AtharvavedaTranslationDrTulsiRamEnglish
+    rows: 5977
+    commentary:
+    - Subject
+    - Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.AtharvavedaTranslationPdtDeviChandMAEnglish:
+    file: bhashyas/atharvaved/AtharvavedaTranslationPdtDeviChandMAEnglish.xlsx
+    copies:
+    - bhashyas/atharvaved/AtharvavedaTranslationPdtDeviChandMAEnglish.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: en
+    author_id: AtharvavedaTranslationPdtDeviChandMAEnglish
+    rows: 5977
+    commentary:
+    - Translation
+    - Footnote
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.ChaturvedaShatakamAchyutananadSaraswatiRigvedaHindi:
+    file: bhashyas/rigved/ChaturvedaShatakamAchyutananadSaraswatiRigvedaHindi.xlsx
+    copies:
+    - bhashyas/rigved/ChaturvedaShatakamAchyutananadSaraswatiRigvedaHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: ChaturvedaShatakamAchyutananadSaraswatiRigvedaHindi
+    rows: 100
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  atharva.ChaturvedaShatakamAchyutanandSaraswatiAtharvavedaHindi:
+    file: bhashyas/atharvaved/ChaturvedaShatakamAchyutanandSaraswatiAtharvavedaHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/ChaturvedaShatakamAchyutanandSaraswatiAtharvavedaHindi.xlsx
+    kind: bhashya
+    collection: atharva
+    lang: hi
+    author_id: ChaturvedaShatakamAchyutanandSaraswatiAtharvavedaHindi
+    rows: 107
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.ChaturvedaShatakamAchyutanandSaraswatiSamvedaHindi:
+    file: bhashyas/samved/ChaturvedaShatakamAchyutanandSaraswatiSamvedaHindi.xlsx
+    copies:
+    - bhashyas/samved/ChaturvedaShatakamAchyutanandSaraswatiSamvedaHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: ChaturvedaShatakamAchyutanandSaraswatiSamvedaHindi
+    rows: 100
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.ChaturvedaShatakamAchyutanandSaraswatiYajurvedaHindi:
+    file: bhashyas/yajurved/ChaturvedaShatakamAchyutanandSaraswatiYajurvedaHindi.xlsx
+    copies:
+    - bhashyas/yajurved/ChaturvedaShatakamAchyutanandSaraswatiYajurvedaHindi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: hi
+    author_id: ChaturvedaShatakamAchyutanandSaraswatiYajurvedaHindi
+    rows: 100
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali:
+    file: bhashyas/atharvaved/ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali.xlsx
+    - bhashyas/rigved/ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali.xlsx
+    - bhashyas/samved/ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali.xlsx
+    - bhashyas/yajurved/ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: ChaturvedaShatakamBangladeshAgniveertranslatedfromAchyutanandSaraswatisBookBengali
+    rows: 399
+    commentary:
+    - পদার্থ
+    - ভাবার্থ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      সরলার্থ: empty after cleaning
+  yajur.DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMAHindi:
+    file: bhashyas/yajurved/DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMAHindi.xlsx
+    copies:
+    - bhashyas/yajurved/DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMAHindi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: hi
+    author_id: DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMAHindi
+    rows: 801
+    commentary:
+    - विषय
+    - भाषार्थ
+    - भावार्थ
+    - प्रमाणार्थ
+    - भाष्यसार
+    - अन्यत्र व्याख्यात
+    verse_details:
+    - विशेष
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय-अर्थ: empty after cleaning
+  yajur.DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMASanskrit:
+    file: bhashyas/yajurved/DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMASanskrit.xlsx
+    copies:
+    - bhashyas/yajurved/DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMASanskrit.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: sa
+    author_id: DayanandYajurvedaBhashyaBhaskarPtSudarshandevAcharyaMASanskrit
+    rows: 764
+    commentary:
+    - विषयः
+    - सपदार्थान्वयः
+    - पदार्थः
+    - भावार्थः
+    - प्रमाणार्थ
+    - भावार्थ पदार्थः
+    verse_details:
+    - विशेषः
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.DayanandYajurvedabhashyaBhaskarBengali:
+    file: bhashyas/yajurved/DayanandYajurvedabhashyaBhaskarBengali.xlsx
+    copies:
+    - bhashyas/yajurved/DayanandYajurvedabhashyaBhaskarBengali.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: bn
+    author_id: DayanandYajurvedabhashyaBhaskarBengali
+    rows: 208
+    commentary:
+    - বিষয়
+    - পদার্থ
+    - ভাবার্থ
+    - অন্যত্র ব্যাখ্যা
+    - ভাষ্যসার
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      মন্ত্র: verse text
+  rig.DeviSuktaRojitChandraBengali:
+    file: bhashyas/rigved/DeviSuktaRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/rigved/DeviSuktaRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: DeviSuktaRojitChandraBengali
+    rows: 8
+    commentary:
+    - पदार्थ
+    - अनुवाद
+    - पदार्थ__2
+    - अनुवाद__2
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषय: empty after cleaning
+      मंत्र: verse text
+  rig.HolyRigvedaDrKrishnakantVedicShastriEnglish:
+    file: bhashyas/rigved/HolyRigvedaDrKrishnakantVedicShastriEnglish.xlsx
+    copies:
+    - bhashyas/rigved/HolyRigvedaDrKrishnakantVedicShastriEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: HolyRigvedaDrKrishnakantVedicShastriEnglish
+    rows: 3052
+    commentary:
+    - Subject of the mantra
+    - Etymology and English translation based on Anvaya (logical connection of words) of Maharshi Dayanad Saraswati (M.D.S)-
+    - English Translation (K.K.V.)
+    - Footnote
+    - Translation of gist of the mantra by Maharshi Dayanand
+    - TRANSLATOR’S NOTES-
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi:
+    file: bhashyas/atharvaved/PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi.xlsx
+    - bhashyas/rigved/PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi.xlsx
+    - bhashyas/yajurved/PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: PravachanonKeGarbhMenVedaMantraKrishnaduttaJiMaharajHindi
+    rows: 150
+    commentary:
+    - विषय
+    - व्याख्याः शृङ्गी ऋषि कृष्ण दत्त जी महाराज
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigVedaSanhitaACollectionofAncientHinduHymnsEnglish:
+    file: bhashyas/rigved/RigVedaSanhitaACollectionofAncientHinduHymnsEnglish.xlsx
+    copies:
+    - bhashyas/rigved/RigVedaSanhitaACollectionofAncientHinduHymnsEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: RigVedaSanhitaACollectionofAncientHinduHymnsEnglish
+    rows: 1
+    commentary:
+    - Subject
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Translation: empty after cleaning
+      Commentary: empty after cleaning
+  rig.RigVedaSwamiSatyaprakashSaraswatiEnglish:
+    file: bhashyas/rigved/RigVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    copies:
+    - bhashyas/rigved/RigVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: RigVedaSwamiSatyaprakashSaraswatiEnglish
+    rows: 60
+    commentary:
+    - Translation
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Notes: empty after cleaning
+  rig.RigvedBhashyaJaydevSharmaRojitChandraBengali:
+    file: bhashyas/rigved/RigvedBhashyaJaydevSharmaRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedBhashyaJaydevSharmaRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedBhashyaJaydevSharmaRojitChandraBengali
+    rows: 663
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedBhashyaShubhankarMandalBasedOnTheRigvedaBhashyaTranslationofSwamiDharamadevVidyamartandfromBengali:
+    file: bhashyas/rigved/RigvedBhashyaShubhankarMandalBasedOnTheRigvedaBhashyaTranslationofSwamiDharamadevVidyamartandfromBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedBhashyaShubhankarMandalBasedOnTheRigvedaBhashyaTranslationofSwamiDharamadevVidyamartandfromBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedBhashyaShubhankarMandalBasedOnTheRigvedaBhashyaTranslationofSwamiDharamadevVidyamartandfromBengali
+    rows: 2208
+    commentary:
+    - Subject [विषय - स्वामी दयानन्द]
+    - Translation [अन्वय - स्वामी दयानन्द]
+    - Commentator's Notes [पदार्थ - स्वामी दयानन्द]
+    - Purport [भावार्थ - स्वामी दयानन्द]
+    - Translator's Notes
+    - Foot Notes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashaBhashyaPanditHarishchandraVidyalankarHindi:
+    file: bhashyas/rigved/RigvedaBhashaBhashyaPanditHarishchandraVidyalankarHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashaBhashyaPanditHarishchandraVidyalankarHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashaBhashyaPanditHarishchandraVidyalankarHindi
+    rows: 491
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashyaAryamuniHindi:
+    file: bhashyas/rigved/RigvedaBhashyaAryamuniHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaAryamuniHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashyaAryamuniHindi
+    rows: 2009
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+      टिप्पणी: empty after cleaning
+  rig.RigvedaBhashyaBasedontheSanskritcommentaryofSwamiDayanandSaraswatiHindi:
+    file: bhashyas/rigved/RigvedaBhashyaBasedontheSanskritcommentaryofSwamiDayanandSaraswatiHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaBasedontheSanskritcommentaryofSwamiDayanandSaraswatiHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashyaBasedontheSanskritcommentaryofSwamiDayanandSaraswatiHindi
+    rows: 5649
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणी: empty after cleaning
+  rig.RigvedaBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali:
+    file: bhashyas/rigved/RigvedaBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedaBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali
+    rows: 50
+    commentary:
+    - বিষয় (Subject)
+    - পদার্থ (Padartha)
+    - ভাবার্থ (Bhabartha)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashyaHarisharanSiddhantalankarHindi:
+    file: bhashyas/rigved/RigvedaBhashyaHarisharanSiddhantalankarHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaHarisharanSiddhantalankarHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashyaHarisharanSiddhantalankarHindi
+    rows: 10554
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - विशेष / सूचना
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashyaPanditAryamuniRojitChandraBengali:
+    file: bhashyas/rigved/RigvedaBhashyaPanditAryamuniRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaPanditAryamuniRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedaBhashyaPanditAryamuniRojitChandraBengali
+    rows: 51
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashyaPanditHarishchandraVidyalankarRojitChandraBengali:
+    file: bhashyas/rigved/RigvedaBhashyaPanditHarishchandraVidyalankarRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaPanditHarishchandraVidyalankarRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedaBhashyaPanditHarishchandraVidyalankarRojitChandraBengali
+    rows: 492
+    commentary:
+    - পদার্থ
+    - ভাবার্থ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      বিষয়: empty after cleaning
+  rig.RigvedaBhashyaShivShankarSharmaHindi:
+    file: bhashyas/rigved/RigvedaBhashyaShivShankarSharmaHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaShivShankarSharmaHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashyaShivShankarSharmaHindi
+    rows: 1225
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+  rig.RigvedaBhashyaSwamiBrahmamuniParivrajakHindi:
+    file: bhashyas/rigved/RigvedaBhashyaSwamiBrahmamuniParivrajakHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaSwamiBrahmamuniParivrajakHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaBhashyaSwamiBrahmamuniParivrajakHindi
+    rows: 1756
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+  rig.RigvedaBhashyaVaidyaDayalmuniAryaGujarati:
+    file: bhashyas/rigved/RigvedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    kind: bhashya
+    collection: rig
+    lang: gu
+    author_id: RigvedaBhashyaVaidyaDayalmuniAryaGujarati
+    rows: 8802
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaBhashyamAryamuniSanskrit:
+    file: bhashyas/rigved/RigvedaBhashyamAryamuniSanskrit.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyamAryamuniSanskrit.xlsx
+    kind: bhashya
+    collection: rig
+    lang: sa
+    author_id: RigvedaBhashyamAryamuniSanskrit
+    rows: 2017
+    commentary:
+    - विषयः
+    - पदार्थः
+    - भावार्थः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वयः: empty after cleaning
+      टिप्पणीः: empty after cleaning
+  rig.RigvedaBhashyamShivShankarSharmaSanskrit:
+    file: bhashyas/rigved/RigvedaBhashyamShivShankarSharmaSanskrit.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyamShivShankarSharmaSanskrit.xlsx
+    kind: bhashya
+    collection: rig
+    lang: sa
+    author_id: RigvedaBhashyamShivShankarSharmaSanskrit
+    rows: 1225
+    commentary:
+    - विषयः
+    - पदार्थः
+    - टिप्पणीः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वयः: empty after cleaning
+      भावार्थः: empty after cleaning
+  rig.RigvedaBhashyamSwamiBrahmamuniParivrajakSanskrit:
+    file: bhashyas/rigved/RigvedaBhashyamSwamiBrahmamuniParivrajakSanskrit.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyamSwamiBrahmamuniParivrajakSanskrit.xlsx
+    kind: bhashya
+    collection: rig
+    lang: sa
+    author_id: RigvedaBhashyamSwamiBrahmamuniParivrajakSanskrit
+    rows: 1735
+    commentary:
+    - विषयः
+    - पदार्थः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वयः: empty after cleaning
+      भावार्थः: empty after cleaning
+      टिप्पणीः: empty after cleaning
+  rig.RigvedaBhashyamSwamiDayanandSaraswatiSanskrit:
+    file: bhashyas/rigved/RigvedaBhashyamSwamiDayanandSaraswatiSanskrit.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaBhashyamSwamiDayanandSaraswatiSanskrit.xlsx
+    kind: bhashya
+    collection: rig
+    lang: sa
+    author_id: RigvedaBhashyamSwamiDayanandSaraswatiSanskrit
+    rows: 5649
+    commentary:
+    - विषयः
+    - अन्वयः
+    - पदार्थः
+    - भावार्थः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणीः: empty after cleaning
+  rig.RigvedaMarathiBhashyaMataSavitaJoshiMarathi:
+    file: bhashyas/rigved/RigvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: mr
+    author_id: RigvedaMarathiBhashyaMataSavitaJoshiMarathi
+    rows: 10519
+    commentary:
+    - विषय
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaParichayVishwanathVidyalankarRojitChandraBengali:
+    file: bhashyas/rigved/RigvedaParichayVishwanathVidyalankarRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaParichayVishwanathVidyalankarRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: RigvedaParichayVishwanathVidyalankarRojitChandraBengali
+    rows: 193
+    commentary:
+    - বিষয় (Subject)
+    - পদার্থ (Padartha)
+    - টিপ্পনী (Tippani)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi:
+    file: bhashyas/rigved/RigvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi
+    rows: 10509
+    commentary:
+    - विषय
+    - भावार्थ
+    - टिप्पणी
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedaTranslationDrTulsiRamEnglish:
+    file: bhashyas/rigved/RigvedaTranslationDrTulsiRamEnglish.xlsx
+    copies:
+    - bhashyas/rigved/RigvedaTranslationDrTulsiRamEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: RigvedaTranslationDrTulsiRamEnglish
+    rows: 10552
+    commentary:
+    - Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.RigvedabhashyamSubodhBhashyaDrKrishnakantVaidikShastriHindi:
+    file: bhashyas/rigved/RigvedabhashyamSubodhBhashyaDrKrishnakantVaidikShastriHindi.xlsx
+    copies:
+    - bhashyas/rigved/RigvedabhashyamSubodhBhashyaDrKrishnakantVaidikShastriHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: RigvedabhashyamSubodhBhashyaDrKrishnakantVaidikShastriHindi
+    rows: 3052
+    commentary:
+    - विषय
+    - सन्धिविच्छेदसहितोऽन्वयः
+    - पदार्थ
+    - महर्षिकृत भावार्थ का भाषानुवाद
+    - विशेष
+    - पदार्थान्वयः(म.द.स.)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      संस्कृत भाग: verse text, pada text and a copy of Dayanand's Sanskrit commentary in one cell
+    column_lang:
+      सन्धिविच्छेदसहितोऽन्वयः: sa
+    cell_rules:
+      विशेष:
+        drop_if_matches: (?s)^(?=.{0,60}ऋषि)(?=.{0,150}देवता)|^\s*शाक्तः\s+देवता|^\s*ऋषि[ः:]?\s*[-–—]|^\s*छन्दः\s*[-–—]
+        reason: seer/deity/metre lines
+  multi.RigvedadiBhashyaBhumikaHindiHindi:
+    file: bhashyas/atharvaved/RigvedadiBhashyaBhumikaHindiHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/RigvedadiBhashyaBhumikaHindiHindi.xlsx
+    - bhashyas/rigved/RigvedadiBhashyaBhumikaHindiHindi.xlsx
+    - bhashyas/yajurved/RigvedadiBhashyaBhumikaHindiHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: RigvedadiBhashyaBhumikaHindiHindi
+    rows: 17
+    commentary:
+    - विषय
+    - व्याख्यान
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणी: empty after cleaning
+  multi.RigvedadiBhashyaBhumikaSanskritSanskrit:
+    file: bhashyas/atharvaved/RigvedadiBhashyaBhumikaSanskritSanskrit.xlsx
+    copies:
+    - bhashyas/atharvaved/RigvedadiBhashyaBhumikaSanskritSanskrit.xlsx
+    - bhashyas/rigved/RigvedadiBhashyaBhumikaSanskritSanskrit.xlsx
+    - bhashyas/yajurved/RigvedadiBhashyaBhumikaSanskritSanskrit.xlsx
+    kind: bhashya
+    collection: multi
+    lang: sa
+    author_id: RigvedadiBhashyaBhumikaSanskritSanskrit
+    rows: 17
+    commentary:
+    - विषयः
+    - व्याख्यानम्
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणीः: empty after cleaning
+  multi.RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi:
+    file: bhashyas/atharvaved/RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi.xlsx
+    copies:
+    - bhashyas/atharvaved/RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi.xlsx
+    - bhashyas/rigved/RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi.xlsx
+    - bhashyas/yajurved/RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: mr
+    author_id: RigvedadibhashyaBhumikaMarathiMataSavitaJoshiMarathi
+    rows: 17
+    commentary:
+    - व्याख्यान
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषय: empty after cleaning
+      टिप्पणी: empty after cleaning
+  sama.SaamaVedamPdtMRJambunathanTamil (1):
+    file: bhashyas/samved/SaamaVedamPdtMRJambunathanTamil (1).xlsx
+    copies:
+    - bhashyas/samved/SaamaVedamPdtMRJambunathanTamil (1).xlsx
+    kind: bhashya
+    collection: sama
+    lang: ta
+    author_id: SaamaVedamPdtMRJambunathanTamil (1)
+    rows: 1875
+    commentary:
+    - Word Meaning
+    - FootNotes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamVedBhashaBhashyaPdtHarishchandraVidyalankarHindi:
+    file: bhashyas/samved/SamVedBhashaBhashyaPdtHarishchandraVidyalankarHindi.xlsx
+    copies:
+    - bhashyas/samved/SamVedBhashaBhashyaPdtHarishchandraVidyalankarHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamVedBhashaBhashyaPdtHarishchandraVidyalankarHindi
+    rows: 650
+    commentary:
+    - भाषा भाष्य (Bhasha Bhashya)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणी (Tippani): empty after cleaning
+  sama.SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaHindi:
+    file: bhashyas/samved/SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaHindi.xlsx
+    copies:
+    - bhashyas/samved/SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaHindi
+    rows: 1871
+    commentary:
+    - भावार्थ (Bhavarth)
+    - टिप्पणी (Tippani)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaRojitChandraBengali:
+    file: bhashyas/samved/SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/samved/SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: sama
+    lang: bn
+    author_id: SamVedaAdhyatmikBhashyaPdtVishvanathaVidyamartandaRojitChandraBengali
+    rows: 114
+    commentary:
+    - পদার্থ
+    - টিপ্পনী
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      বিষয়: empty after cleaning
+  sama.SamVedaSwamiSatyaprakashSaraswatiEnglish:
+    file: bhashyas/samved/SamVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    copies:
+    - bhashyas/samved/SamVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    kind: bhashya
+    collection: sama
+    lang: en
+    author_id: SamVedaSwamiSatyaprakashSaraswatiEnglish
+    rows: 1875
+    commentary:
+    - Translation
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Notes: cross-references to other verses only ('Cf. Rv ...')
+  sama.SamvedBhashyaAcharyaRamnathVedalankarHindi:
+    file: bhashyas/samved/SamvedBhashyaAcharyaRamnathVedalankarHindi.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyaAcharyaRamnathVedalankarHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamvedBhashyaAcharyaRamnathVedalankarHindi
+    rows: 1875
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिपण्णी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+  sama.SamvedBhashyaJaydevSharmaRojitChandraBengali:
+    file: bhashyas/samved/SamvedBhashyaJaydevSharmaRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyaJaydevSharmaRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: sama
+    lang: bn
+    author_id: SamvedBhashyaJaydevSharmaRojitChandraBengali
+    rows: 114
+    commentary:
+    - বিষয়
+    - পদার্থ
+    - টিপ্পনী
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedBhashyaSwamiBrahmamuniParivrajakHindi:
+    file: bhashyas/samved/SamvedBhashyaSwamiBrahmamuniParivrajakHindi.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyaSwamiBrahmamuniParivrajakHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamvedBhashyaSwamiBrahmamuniParivrajakHindi
+    rows: 1875
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details:
+    - विशेष
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषय: empty after cleaning
+      अन्वय: empty after cleaning
+  sama.SamvedBhashyaSwamiJagadishwaranandSaraswatiRojitChandraBengali:
+    file: bhashyas/samved/SamvedBhashyaSwamiJagadishwaranandSaraswatiRojitChandraBengali.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyaSwamiJagadishwaranandSaraswatiRojitChandraBengali.xlsx
+    kind: bhashya
+    collection: sama
+    lang: bn
+    author_id: SamvedBhashyaSwamiJagadishwaranandSaraswatiRojitChandraBengali
+    rows: 114
+    commentary:
+    - ভাষ্য
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      বিষয়: empty after cleaning
+  sama.SamvedBhashyaVaidyaDayalmuniAryaGujarati:
+    file: bhashyas/samved/SamvedBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    kind: bhashya
+    collection: sama
+    lang: gu
+    author_id: SamvedBhashyaVaidyaDayalmuniAryaGujarati
+    rows: 1875
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedBhashyamAcharyaRamnathVedalankarSanskrit:
+    file: bhashyas/samved/SamvedBhashyamAcharyaRamnathVedalankarSanskrit.xlsx
+    copies:
+    - bhashyas/samved/SamvedBhashyamAcharyaRamnathVedalankarSanskrit.xlsx
+    kind: bhashya
+    collection: sama
+    lang: sa
+    author_id: SamvedBhashyamAcharyaRamnathVedalankarSanskrit
+    rows: 1875
+    commentary:
+    - विषयः
+    - पदार्थः
+    - भावार्थः
+    - टिप्पणीः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वयः: empty after cleaning
+  sama.SamvedaAcharyaDharmaDevaVidyaMartandaEnglish:
+    file: bhashyas/samved/SamvedaAcharyaDharmaDevaVidyaMartandaEnglish.xlsx
+    copies:
+    - bhashyas/samved/SamvedaAcharyaDharmaDevaVidyaMartandaEnglish.xlsx
+    kind: bhashya
+    collection: sama
+    lang: en
+    author_id: SamvedaAcharyaDharmaDevaVidyaMartandaEnglish
+    rows: 1876
+    commentary:
+    - Translation
+    - Comments
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+    column_lang:
+      Comments: sa
+  sama.SamvedaBhashyamHarisharanSiddhantalankarHindi:
+    file: bhashyas/samved/SamvedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    copies:
+    - bhashyas/samved/SamvedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamvedaBhashyamHarisharanSiddhantalankarHindi
+    rows: 1875
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaBhashyamTulsiramSwamiHindi:
+    file: bhashyas/samved/SamvedaBhashyamTulsiramSwamiHindi.xlsx
+    copies:
+    - bhashyas/samved/SamvedaBhashyamTulsiramSwamiHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamvedaBhashyamTulsiramSwamiHindi
+    rows: 1875
+    commentary:
+    - भावार्थ (Bhavarth)
+    - टिप्पणी (Tippani)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaMarathiBhashyaMataSavitaJoshiMarathi:
+    file: bhashyas/samved/SamvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    copies:
+    - bhashyas/samved/SamvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: mr
+    author_id: SamvedaMarathiBhashyaMataSavitaJoshiMarathi
+    rows: 1875
+    commentary:
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi:
+    file: bhashyas/samved/SamvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    copies:
+    - bhashyas/samved/SamvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: hi
+    author_id: SamvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi
+    rows: 1875
+    commentary:
+    - विषय
+    - भावार्थ
+    - टिप्पणी
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaTarjumaAshuRamAryaUrduUrdu:
+    file: bhashyas/samved/SamvedaTarjumaAshuRamAryaUrduUrdu.xlsx
+    copies:
+    - bhashyas/samved/SamvedaTarjumaAshuRamAryaUrduUrdu.xlsx
+    kind: bhashya
+    collection: sama
+    lang: ur
+    author_id: SamvedaTarjumaAshuRamAryaUrduUrdu
+    rows: 650
+    commentary:
+    - Mazmoon
+    - Lafzi Maana
+    - Tashree
+    - Khaas
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaTranslationDrTulsiRamEnglish:
+    file: bhashyas/samved/SamvedaTranslationDrTulsiRamEnglish.xlsx
+    copies:
+    - bhashyas/samved/SamvedaTranslationDrTulsiRamEnglish.xlsx
+    kind: bhashya
+    collection: sama
+    lang: en
+    author_id: SamvedaTranslationDrTulsiRamEnglish
+    rows: 1875
+    commentary:
+    - Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaTranslationPdtDeviChandMAEnglish:
+    file: bhashyas/samved/SamvedaTranslationPdtDeviChandMAEnglish.xlsx
+    copies:
+    - bhashyas/samved/SamvedaTranslationPdtDeviChandMAEnglish.xlsx
+    kind: bhashya
+    collection: sama
+    lang: en
+    author_id: SamvedaTranslationPdtDeviChandMAEnglish
+    rows: 1875
+    commentary:
+    - Meaning
+    - Translator Comment
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  sama.SamvedaTranslationVedkumarVedalankarMarathi:
+    file: bhashyas/samved/SamvedaTranslationVedkumarVedalankarMarathi.xlsx
+    copies:
+    - bhashyas/samved/SamvedaTranslationVedkumarVedalankarMarathi.xlsx
+    kind: bhashya
+    collection: sama
+    lang: mr
+    author_id: SamvedaTranslationVedkumarVedalankarMarathi
+    rows: 733
+    commentary:
+    - विषय
+    - शब्दार्थ
+    - भावार्थ
+    - विशेष
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.TheRigvedaBasedontranslationofSwamiDayanandSwamiDharmanandSaraswatiVidyaMartandEnglish:
+    file: bhashyas/rigved/TheRigvedaBasedontranslationofSwamiDayanandSwamiDharmanandSaraswatiVidyaMartandEnglish.xlsx
+    copies:
+    - bhashyas/rigved/TheRigvedaBasedontranslationofSwamiDayanandSwamiDharmanandSaraswatiVidyaMartandEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: TheRigvedaBasedontranslationofSwamiDayanandSwamiDharmanandSaraswatiVidyaMartandEnglish
+    rows: 5060
+    commentary:
+    - Subject [विषय - स्वामी दयानन्द]
+    - Translation [अन्वय - स्वामी दयानन्द]
+    - Commentator's Notes [पदार्थ - स्वामी दयानन्द]
+    - Purport [भावार्थ - स्वामी दयानन्द]
+    - Translator's Notes
+    - Foot Notes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.VedSandeshHindi:
+    file: bhashyas/rigved/VedSandeshHindi.xlsx
+    copies:
+    - bhashyas/rigved/VedSandeshHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: VedSandeshHindi
+    rows: 1
+    commentary: []
+    verse_details: []
+    excluded:
+      Mantra Ref ID: test data only ('adfasdf')
+      विषय (Subject): test data only ('adfasdf')
+      पदार्थ (Meaning): test data only ('adfasdf')
+      व्याख्या (Explanation): test data only ('adfasdf')
+      टिप्पणी (Notes): test data only ('adfasdf')
+  multi.VedSourabhSwamiJagadishwaranandHindiHindi:
+    file: bhashyas/atharvaved/VedSourabhSwamiJagadishwaranandHindiHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/VedSourabhSwamiJagadishwaranandHindiHindi.xlsx
+    - bhashyas/rigved/VedSourabhSwamiJagadishwaranandHindiHindi.xlsx
+    - bhashyas/samved/VedSourabhSwamiJagadishwaranandHindiHindi.xlsx
+    - bhashyas/yajurved/VedSourabhSwamiJagadishwaranandHindiHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: VedSourabhSwamiJagadishwaranandHindiHindi
+    rows: 169
+    commentary:
+    - विषय
+    - शब्दार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali:
+    file: bhashyas/atharvaved/VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali.xlsx
+    - bhashyas/rigved/VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali.xlsx
+    - bhashyas/samved/VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali.xlsx
+    - bhashyas/yajurved/VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: VedSouravRojitChandraSwamiJagdishwaranandSaraswatiBengali
+    rows: 155
+    commentary:
+    - विषय
+    - पदार्थ
+    - अनुवाद
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      मंत्र: verse text
+  multi.VedaInspirationsSriSubodhKumarHinglish:
+    file: bhashyas/atharvaved/VedaInspirationsSriSubodhKumarHinglish.xlsx
+    copies:
+    - bhashyas/atharvaved/VedaInspirationsSriSubodhKumarHinglish.xlsx
+    - bhashyas/rigved/VedaInspirationsSriSubodhKumarHinglish.xlsx
+    - bhashyas/yajurved/VedaInspirationsSriSubodhKumarHinglish.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hinglish
+    author_id: VedaInspirationsSriSubodhKumarHinglish
+    rows: 179
+    commentary:
+    - Subject
+    - Word Meaning
+    - Tika / Tippani
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi:
+    file: bhashyas/atharvaved/VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi.xlsx
+    - bhashyas/rigved/VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi.xlsx
+    - bhashyas/yajurved/VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: VedaadhyayanPraveshikaSwamiBrahmmuniParivrajakHindi
+    rows: 510
+    commentary:
+    - विषय
+    - मन्त्रार्थ
+    - व्यक्तव्य
+    - टिप्पणी
+    verse_details:
+    - विशेष
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedamritBengali:
+    file: bhashyas/atharvaved/VedamritBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/VedamritBengali.xlsx
+    - bhashyas/rigved/VedamritBengali.xlsx
+    - bhashyas/samved/VedamritBengali.xlsx
+    - bhashyas/yajurved/VedamritBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: VedamritBengali
+    rows: 318
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - विशेष विवेचन
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedasVerbatimEnglish:
+    file: bhashyas/atharvaved/VedasVerbatimEnglish.xlsx
+    copies:
+    - bhashyas/atharvaved/VedasVerbatimEnglish.xlsx
+    - bhashyas/rigved/VedasVerbatimEnglish.xlsx
+    kind: bhashya
+    collection: multi
+    lang: en
+    author_id: VedasVerbatimEnglish
+    rows: 3
+    commentary:
+    - Word Meaning
+    - Mantra Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.VedasmadeEasyEnglish:
+    file: bhashyas/rigved/VedasmadeEasyEnglish.xlsx
+    copies:
+    - bhashyas/rigved/VedasmadeEasyEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: VedasmadeEasyEnglish
+    rows: 599
+    commentary:
+    - Literal meaning
+    - Meaning
+    - Note
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Subject: empty after cleaning
+    column_lang:
+      Literal meaning: sa
+  multi.VedicBhajanShriLalitMohanSahniHindi:
+    file: bhashyas/atharvaved/VedicBhajanShriLalitMohanSahniHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/VedicBhajanShriLalitMohanSahniHindi.xlsx
+    - bhashyas/rigved/VedicBhajanShriLalitMohanSahniHindi.xlsx
+    - bhashyas/samved/VedicBhajanShriLalitMohanSahniHindi.xlsx
+    - bhashyas/yajurved/VedicBhajanShriLalitMohanSahniHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: VedicBhajanShriLalitMohanSahniHindi
+    rows: 152
+    commentary:
+    - Bhajan
+    - Vyakhya
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali:
+    file: bhashyas/atharvaved/VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali.xlsx
+    - bhashyas/rigved/VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali.xlsx
+    - bhashyas/samved/VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali.xlsx
+    - bhashyas/yajurved/VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: VedicVinayAcharyaAbhaydevVidyalankarTranslatedtoBengaliBengali
+    rows: 23
+    commentary:
+    - Padartha (পদার্থ)
+    - Vinay (বিনয়)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.VedritamEnglish:
+    file: bhashyas/rigved/VedritamEnglish.xlsx
+    copies:
+    - bhashyas/rigved/VedritamEnglish.xlsx
+    kind: bhashya
+    collection: rig
+    lang: en
+    author_id: VedritamEnglish
+    rows: 2
+    commentary:
+    - Subject
+    - Reflection
+    - Essence
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.VedsarPanditDeenabandhuVedashastriBengali:
+    file: bhashyas/atharvaved/VedsarPanditDeenabandhuVedashastriBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/VedsarPanditDeenabandhuVedashastriBengali.xlsx
+    - bhashyas/rigved/VedsarPanditDeenabandhuVedashastriBengali.xlsx
+    - bhashyas/samved/VedsarPanditDeenabandhuVedashastriBengali.xlsx
+    - bhashyas/yajurved/VedsarPanditDeenabandhuVedashastriBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: VedsarPanditDeenabandhuVedashastriBengali
+    rows: 406
+    commentary:
+    - বিষয়
+    - পদার্থ
+    - বঙ্গানুবাদ
+    - ভাবার্থ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.VishvedevaRigvedaGurudattHindi:
+    file: bhashyas/rigved/VishvedevaRigvedaGurudattHindi.xlsx
+    copies:
+    - bhashyas/rigved/VishvedevaRigvedaGurudattHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: VishvedevaRigvedaGurudattHindi
+    rows: 2
+    commentary:
+    - विषय
+    - पदार्थ
+    - व्याख्या
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.YagyaDigDarshanRojitChandraBarmanBengali:
+    file: bhashyas/atharvaved/YagyaDigDarshanRojitChandraBarmanBengali.xlsx
+    copies:
+    - bhashyas/atharvaved/YagyaDigDarshanRojitChandraBarmanBengali.xlsx
+    - bhashyas/rigved/YagyaDigDarshanRojitChandraBarmanBengali.xlsx
+    - bhashyas/samved/YagyaDigDarshanRojitChandraBarmanBengali.xlsx
+    - bhashyas/yajurved/YagyaDigDarshanRojitChandraBarmanBengali.xlsx
+    kind: bhashya
+    collection: multi
+    lang: bn
+    author_id: YagyaDigDarshanRojitChandraBarmanBengali
+    rows: 200
+    commentary:
+    - বিষয়
+    - পদার্থ
+    - ভাবার্থ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurVedBhashyaPtVedkumarVedalankarMarathi:
+    file: bhashyas/yajurved/YajurVedBhashyaPtVedkumarVedalankarMarathi.xlsx
+    copies:
+    - bhashyas/yajurved/YajurVedBhashyaPtVedkumarVedalankarMarathi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: mr
+    author_id: YajurVedBhashyaPtVedkumarVedalankarMarathi
+    rows: 1976
+    commentary:
+    - विषय
+    - शब्दार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurVedaBhashyamHarisharanSiddhantalankarHindi:
+    file: bhashyas/yajurved/YajurVedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    copies:
+    - bhashyas/yajurved/YajurVedaBhashyamHarisharanSiddhantalankarHindi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: hi
+    author_id: YajurVedaBhashyamHarisharanSiddhantalankarHindi
+    rows: 1928
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurVedaSwamiSatyaprakashSaraswatiEnglish:
+    file: bhashyas/yajurved/YajurVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    copies:
+    - bhashyas/yajurved/YajurVedaSwamiSatyaprakashSaraswatiEnglish.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: en
+    author_id: YajurVedaSwamiSatyaprakashSaraswatiEnglish
+    rows: 1975
+    commentary:
+    - Translation
+    - Notes
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali:
+    file: bhashyas/yajurved/YajurvedBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: bn
+    author_id: YajurvedBhashyaDipangkarSinghaDeepHarisharanSiddhantalankarBengali
+    rows: 4
+    commentary:
+    - বিষয় (Subject)
+    - পদার্থ (Padartha)
+    - ভাবার্থ (Bhabartha)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedaBhashyaRojitChandraPtJaydevSharmaBengali:
+    file: bhashyas/yajurved/YajurvedaBhashyaRojitChandraPtJaydevSharmaBengali.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaBhashyaRojitChandraPtJaydevSharmaBengali.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: bn
+    author_id: YajurvedaBhashyaRojitChandraPtJaydevSharmaBengali
+    rows: 31
+    commentary:
+    - বিষয় (Subject)
+    - পদার্থ (Padartha)
+    - টিপ্পনী (Tippani)
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedaBhashyaSwamiDayanandSaraswatiHindi:
+    file: bhashyas/yajurved/YajurvedaBhashyaSwamiDayanandSaraswatiHindi.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaBhashyaSwamiDayanandSaraswatiHindi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: hi
+    author_id: YajurvedaBhashyaSwamiDayanandSaraswatiHindi
+    rows: 1977
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      अन्वय: empty after cleaning
+      टिप्पणी: empty after cleaning
+  yajur.YajurvedaBhashyaVaidyaDayalmuniAryaGujarati:
+    file: bhashyas/yajurved/YajurvedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaBhashyaVaidyaDayalmuniAryaGujarati.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: gu
+    author_id: YajurvedaBhashyaVaidyaDayalmuniAryaGujarati
+    rows: 1977
+    commentary:
+    - पदार्थ
+    - भावार्थ
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedaBhashyamSwamiDayanandSaraswatiSanskrit:
+    file: bhashyas/yajurved/YajurvedaBhashyamSwamiDayanandSaraswatiSanskrit.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaBhashyamSwamiDayanandSaraswatiSanskrit.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: sa
+    author_id: YajurvedaBhashyamSwamiDayanandSaraswatiSanskrit
+    rows: 1976
+    commentary:
+    - विषयः
+    - अन्वयः
+    - पदार्थः
+    - भावार्थः
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      टिप्पणीः: empty after cleaning
+  yajur.YajurvedaMarathiBhashyaMataSavitaJoshiMarathi:
+    file: bhashyas/yajurved/YajurvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaMarathiBhashyaMataSavitaJoshiMarathi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: mr
+    author_id: YajurvedaMarathiBhashyaMataSavitaJoshiMarathi
+    rows: 1976
+    commentary:
+    - भावार्थ
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषय: empty after cleaning
+  yajur.YajurvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi:
+    file: bhashyas/yajurved/YajurvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: hi
+    author_id: YajurvedaSanhitaBhashaBhashyaPtJaydevSharmaHindi
+    rows: 1982
+    commentary:
+    - विषय
+    - भावार्थ
+    - टिप्पणी
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedaTarjumaAshuRamAryaUrduUrdu:
+    file: bhashyas/yajurved/YajurvedaTarjumaAshuRamAryaUrduUrdu.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaTarjumaAshuRamAryaUrduUrdu.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: ur
+    author_id: YajurvedaTarjumaAshuRamAryaUrduUrdu
+    rows: 6
+    commentary:
+    - Vishay
+    - Padarth
+    - Bhavarth
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      Vishesh: empty after cleaning
+  yajur.YajurvedaTranslationBengaliPanditSatishChandraVidyaratnaBengali:
+    file: bhashyas/yajurved/YajurvedaTranslationBengaliPanditSatishChandraVidyaratnaBengali.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaTranslationBengaliPanditSatishChandraVidyaratnaBengali.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: bn
+    author_id: YajurvedaTranslationBengaliPanditSatishChandraVidyaratnaBengali
+    rows: 1976
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+      मन्त्र (बांग्ला): verse text
+  yajur.YajurvedaTranslationDrTulsiRamEnglish:
+    file: bhashyas/yajurved/YajurvedaTranslationDrTulsiRamEnglish.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaTranslationDrTulsiRamEnglish.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: en
+    author_id: YajurvedaTranslationDrTulsiRamEnglish
+    rows: 1976
+    commentary:
+    - Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  yajur.YajurvedaTranslationPdtDeviChandMAEnglish:
+    file: bhashyas/yajurved/YajurvedaTranslationPdtDeviChandMAEnglish.xlsx
+    copies:
+    - bhashyas/yajurved/YajurvedaTranslationPdtDeviChandMAEnglish.xlsx
+    kind: bhashya
+    collection: yajur
+    lang: en
+    author_id: YajurvedaTranslationPdtDeviChandMAEnglish
+    rows: 1976
+    commentary:
+    - Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+  rig.YamYamiSuktaKiAdhyatmikVyakhyaDrSatyaBratRajeshHindi:
+    file: bhashyas/rigved/YamYamiSuktaKiAdhyatmikVyakhyaDrSatyaBratRajeshHindi.xlsx
+    copies:
+    - bhashyas/rigved/YamYamiSuktaKiAdhyatmikVyakhyaDrSatyaBratRajeshHindi.xlsx
+    kind: bhashya
+    collection: rig
+    lang: hi
+    author_id: YamYamiSuktaKiAdhyatmikVyakhyaDrSatyaBratRajeshHindi
+    rows: 14
+    commentary:
+    - पदार्थ
+    - व्याख्या
+    - टिप्पणी
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      विषय: empty after cleaning
+  rig.YamaYamiSuktaPanditJoydevSharmaRojitChandraBarmanBengali:
+    file: bhashyas/rigved/YamaYamiSuktaPanditJoydevSharmaRojitChandraBarmanBengali.xlsx
+    copies:
+    - bhashyas/rigved/YamaYamiSuktaPanditJoydevSharmaRojitChandraBarmanBengali.xlsx
+    kind: bhashya
+    collection: rig
+    lang: bn
+    author_id: YamaYamiSuktaPanditJoydevSharmaRojitChandraBarmanBengali
+    rows: 14
+    commentary:
+    - विषय
+    - पदार्थ
+    - भावार्थ
+    verse_details:
+    - ऋषि | देवता | छन्द | स्वर
+    excluded:
+      Mantra Ref ID: verse reference or number
+  multi.vedonkemotiHindi:
+    file: bhashyas/atharvaved/vedonkemotiHindi.xlsx
+    copies:
+    - bhashyas/atharvaved/vedonkemotiHindi.xlsx
+    - bhashyas/rigved/vedonkemotiHindi.xlsx
+    - bhashyas/samved/vedonkemotiHindi.xlsx
+    - bhashyas/yajurved/vedonkemotiHindi.xlsx
+    kind: bhashya
+    collection: multi
+    lang: hi
+    author_id: vedonkemotiHindi
+    rows: 97
+    commentary:
+    - सूक्तार्थ
+    - भावार्थ
+    - Purport
+    - Sukta Meaning
+    verse_details: []
+    excluded:
+      Mantra Ref ID: verse reference or number
+      सूक्त: a quoted phrase of the verse (verse text)
+    column_lang:
+      Purport: en
+      Sukta Meaning: en
