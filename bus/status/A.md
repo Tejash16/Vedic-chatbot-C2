@@ -1,3 +1,3 @@
-session A | 2026-11-22T15:54:53Z
+session A | 2026-11-22T16:41:16Z
 
-C2b done (Qwen3 dense: chunk R@10 0.264, verse R@10 0.556; +BM25 RRF: 0.253 / 0.542). C6 running: bge-m3 dense+sparse on 300(hdr baseline)/150/600/300-no-header, ~45-55 min GPU, lock taken per variant.
+C2b done. C6: c300 baseline done; c150/c600/c300_nohdr queued for the GPU (B holds it for C5 until ~16:50Z). C6 ETA ~17:10Z, then supplementary Qwen max_len 1024, DONE ~17:45Z.
