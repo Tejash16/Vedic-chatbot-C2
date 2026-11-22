@@ -1,3 +1,3 @@
-session B | 2026-11-22T14:53:15Z
+session B | 2026-11-22T15:34:28Z
 
-Docker available: OpenSearch 2.19.1 container + hindi/english/plain analyzers smoke-tested on dummy text. Both local rerankers smoke-tested on GPU (lock released). Waiting for B_READY from C, then CHUNKS_VERIFIED from A.
+B_READY received; C1b/C5 code switched to src/common scoring. Waiting for CHUNKS_VERIFIED from A, then C1b (OpenSearch BM25).
