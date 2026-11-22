@@ -1,3 +1,3 @@
-session C | 2026-11-22T16:43:51Z
+session C | 2026-11-22T16:56:29Z
 
-Waiting for A (DONE ~17:45Z) and B (C5). Merge and failure-case code ready.
+B C5 in (Haiku rerank R@8 .592). Waiting for A DONE (~17:45Z) and B DONE (after Qwen-1024 reranker row, ~18:30-18:45Z). Drafting report.
