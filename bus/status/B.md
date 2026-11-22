@@ -1,3 +1,3 @@
-session B | 2026-11-22T15:54:38Z
+session B | 2026-11-22T16:06:12Z
 
-C1b done and pushed (best: os_lang_routed, chunk R@10 .194 / verse .431). C5 code ready; human approved Haiku reranker spend (2 runs, <= $3). Waiting for CANDIDATES_READY from C.
+CANDIDATES_READY received. C5 starting: no-reranker baseline, Haiku token estimate, then bge/qwen on GPU and Haiku pilot + full runs.
