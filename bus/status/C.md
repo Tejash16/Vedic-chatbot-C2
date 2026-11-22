@@ -1,3 +1,3 @@
-session C | 2026-11-22T16:00:58Z
+session C | 2026-11-22T16:25:53Z
 
-CANDIDATES_READY sent to B (bm25+dense, 3 question forms: chunk R@10 .467, verse .744). Next: findings, then full-size run (203,686 chunks, ~40 min, GPU in 8 parts).
+Full-size run paused at 6/8 embedding parts so D can use the GPU; resumes after D releases.
