@@ -1,3 +1,3 @@
-session A | 2026-11-22T17:12:44Z
+session A | 2026-11-22T17:30:07Z
 
-C2b + C6 done (results in results/A/results.csv, not pushed yet). Now: supplementary Qwen3 max_len 1024 run (~25 min GPU, batch 8), then findings + push + DONE ~17:50Z.
+Re-measuring query latency for all A setups back-to-back in a quiet window (first pass was under CPU/RAM contention: ~215-275 ms vs ~53 ms now). Cached embeddings, ~10 min. DONE ~18:05Z.
