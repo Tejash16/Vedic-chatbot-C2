@@ -1,0 +1,39 @@
+# Session identity and local bus state
+.session
+.bus_seen
+
+# Secrets
+.env
+*.env
+!.env.example
+
+# Source text and anything derived from it never goes to Git
+local/
+data/
+work/
+*.xlsx
+*.xls
+*.csv.gz
+*.parquet
+*.npy
+*.npz
+*.pt
+*.bin
+*.safetensors
+*.faiss
+data-audit.md
+benchmark-report.md
+sets-estimate.md
+sets-for-review*.csv
+*answer-key*
+
+# Python and tools
+__pycache__/
+*.pyc
+venv/
+.venv/
+hf-cache/
+.ipynb_checkpoints/
+
+# Kit archive
+c2-kit.zip

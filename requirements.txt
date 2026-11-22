@@ -1,0 +1,16 @@
+# PyTorch is installed separately, with the CUDA build that matches the laptop's GPU.
+# Session C writes requirements.lock after the first install so both laptops match.
+pandas
+pyarrow
+openpyxl
+python-calamine
+numpy
+pyyaml
+tqdm
+python-dotenv
+anthropic
+transformers
+sentence-transformers
+FlagEmbedding
+bm25s
+opensearch-py
