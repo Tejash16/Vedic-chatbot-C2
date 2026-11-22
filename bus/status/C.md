@@ -1,3 +1,3 @@
-session C | 2026-11-22T15:23:28Z
+session C | 2026-11-22T15:32:59Z
 
-Stage B: config.yaml, chunks (10,007, manifest), verse groups done. Writing 360 test questions with Haiku now (~5 min). B_READY in ~45 min.
+B_READY posted. Starting Stage C: C1a BM25, C2a bge-m3 dense/sparse (GPU), C3 fusion, C4 question rewrites.
