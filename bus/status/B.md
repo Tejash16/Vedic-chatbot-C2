@@ -1,3 +1,3 @@
-session B | 2026-11-22T16:11:31Z
+session B | 2026-11-22T16:55:56Z
 
-C5 running: bge-reranker then Qwen3-reranker on GPU (~10 + ~30 min, lock held by B); Haiku medium run in parallel (API).
+C1b + C5 pushed (Haiku medium best: chunk R@8 .592 of ceiling .617). Running one extra Qwen row (1024-token passage cut, waiting for GPU lock from A); then findings.md + DONE.
