@@ -1,0 +1,21 @@
+# Session B findings: C1b OpenSearch keyword arm, C5 rerankers (laptop 2: i5-11400H, 7.7 GB RAM, RTX 3050 Laptop 4 GB)
+
+**C1b** (10,007 chunks, 360 questions; chunk / verse R@10, MRR@10 in brackets; OpenSearch 2.19.1 in Docker, BM25 k1 1.2 b 0.75, header + text indexed):
+1. Best keyword setup is `os_lang_routed`: a Hindi-analyzer field holds hi+sa chunks, an English-analyzer field holds en chunks, and each question goes to the field of its script (Devanagari to Hindi, Latin to English). **0.194 / 0.431** (.124/.302), against C1a bm25s 0.158 / 0.375. The gain comes from stemming: hi questions 0.244 vs 0.189, sa_quote 0.267 vs 0.200, en 0.200 vs 0.189.
+2. The unstemmed field alone (`os_plain`, standard tokenizer + lowercase) gives 0.156 / 0.372, the same as C1a, so the two tokenizers agree.
+3. Negative result: querying both language fields at once with `best_fields` (max raw BM25) drops to 0.147 / 0.319. For English questions, 92% of the top 10 were hi/sa chunks. English function words are not Hindi stopwords and are rare in the Hindi field ("the" is in 25 of 6,963 docs), so they get a very high IDF there. Raw BM25 scores from fields with different statistics are not comparable: route by script or fuse by rank.
+4. Fusing the unstemmed field into the routed setup by RRF (0.186 / 0.406) or summing all three fields (`most_fields`, 0.175 / 0.400) does not beat routing alone.
+5. Keyword search cannot cross languages: chunk R@10 is 0.413 same-language vs 0.059 cross-language, and hi_roman stays near 0.07 in every setup.
+6. Latency 9 ms p50, 17 ms p95 per query (client wall clock incl. HTTP, 768 MB heap, ~1.2 GB RAM for the container), against 0.6 ms for in-process bm25s on laptop 1. Indexing takes 8–18 s.
+
+**C5** (rerank C's 50 C4 candidates, keep 8; chunk R@8 / MRR@8 / nDCG@8; ceiling R@50 = 0.617; latency and cost come on top of candidate generation):
+7. No reranker: .444 / .250 / .297. bge-reranker-v2-m3: .486 / .329 / .367. Qwen3-Reranker-0.6B (512-token cut): .461 / .298 / .337. claude-haiku-5-5 effort medium: **.592 / .422 / .463**. Effort low: .592 / .385 / .435.
+8. Verse R@8 / MRR@8: none .714/.522, bge .772/.665, Qwen .722/.597, Haiku medium **.836/.792**, Haiku low .825/.750.
+9. Haiku reaches 96% of the candidate ceiling in every question group (R@8 .592 of .617). 38% of questions have no gold chunk among the 50 candidates, so candidate recall now limits results more than the reranker does.
+10. Cross-language questions (222): bge and Qwen leave chunk R@8 at .351–.360 (ceiling .523); Haiku lifts it to .505. Same-language (138): bge .703, Haiku .732–.754 (ceiling .768).
+11. The local rerankers make Hindi-in-Roman questions worse: MRR@8 bge .211, Qwen .178, against .256 with no reranker. Haiku gets .416.
+12. Qwen's tokenizer needs about 2.5 times bge's tokens on Devanagari (median Hindi passage 619 vs 248), so the 512 cut truncated 74% of hi and 59% of sa passages for Qwen only. On English gold chunks, where nothing was cut, Qwen beats bge (R@8 .539 vs .484). So the bge vs Qwen ranking on Hindi/Sanskrit is confounded. A rerun with a 1,024-token cut (the same text bge sees) ran out of memory on the 4 GB GPU and was dropped; it is the first thing to test next if a free local reranker is needed.
+13. Latency per question: bge 1.37 s p50 / 1.52 s p95 (50 pairs, fp16, RTX 3050); Qwen 4.5 / 6.5 s; Haiku medium 2.5 / 4.6 s; Haiku low 1.45 / 3.3 s (real-time API, 4 requests in flight).
+14. Cost per 1,000 questions: Haiku medium $2.22, low $2.12 (about 21k input tokens per question for 50 passages; output averages 266 vs 63 tokens); the local rerankers are free. No refusals. One low-effort answer returned 7 picks; the 8th slot was filled from candidate order.
+15. Recommendation: rerank with claude-haiku-5-5 at medium effort. It gives the largest gain and is the only reranker that helps cross-language and Hindi-in-Roman questions. Use low effort when latency matters: same recall, MRR 0.04 lower, about 1 s faster. With no paid step, use bge-reranker-v2-m3: better than Qwen at the 512 cut and 3 times faster on this GPU (see 12 for the caveat). For the keyword arm, use OpenSearch with script routing if a separate service and ~9 ms per query are acceptable; otherwise use bm25s.
+16. Spend: $1.56 of B's $5 (results/B/spend.log). Per-question chunk IDs for every setup are in results/B/runs/.
